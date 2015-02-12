@@ -3,6 +3,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -24,40 +25,30 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
  */
 public class MaleUsersBelow7Years 
 {
-    public static class Map extends Mapper<LongWritable,Text,Text,Text>
+    public static class Map extends Mapper<LongWritable,Text,Text,NullWritable>
     {
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException 
         {
+            //Mapper takes value from data set line by line and produces key value pair for each data row in the data set
             String line=value.toString();
             String [] tokenizedLine=line.split("::");
             String userId=tokenizedLine[0];
             String gender=tokenizedLine[1];
             String age=tokenizedLine[2];
-            if(gender.compareTo("M")==0)
+            if(gender.compareTo("M")==0 && Integer.parseInt(age)<=7)
             {
-                context.write(new Text(userId),new Text(age));
+                context.write(new Text(userId),NullWritable.get()); //input to reducer
             }
         }
         
-        
     }
     
-    public static class Reduce extends Reducer<Text, Text, Text, Text> 
+    public static class Reduce extends Reducer<Text, NullWritable, Text, NullWritable> 
     {
-        public void reduce(Text key, Iterable<Text> values, Context context)throws IOException, InterruptedException
+        public void reduce(Text key, NullWritable value, Context context)throws IOException, InterruptedException
         {
-           
-           for(Text v : values)
-           {
-               String ageValue=v.toString();
-               if(Integer.parseInt(ageValue)<=7)
-               {
-                  context.write(key,new Text(ageValue)); 
-               }
-           }
-           
+           context.write(key,NullWritable.get());
         }
-        
     }
     
     
@@ -71,14 +62,14 @@ public class MaleUsersBelow7Years
         job.setReducerClass(Reducer.class);
         job.setCombinerClass(Reducer.class);
         
-        
+        //set output and input formats;mapper-input reducer-output
         job.setInputFormatClass(TextInputFormat.class);
  	job.setOutputFormatClass(TextOutputFormat.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(NullWritable.class);
         
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        FileInputFormat.addInputPath(job, new Path(args[0])); //path for input file
+        FileOutputFormat.setOutputPath(job, new Path(args[1])); // Path for output file
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
     
